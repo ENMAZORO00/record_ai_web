@@ -8,6 +8,11 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "engines": {
+    "node": ">=14.0.0",
+    "yarn": ">=1.22.0",
+    "npm": "please-use-yarn"
+  },
   "dependencies": {
     "next": "16.2.2",
     "react": "19.2.4",
