@@ -15,7 +15,8 @@ import {
   Typography,
 } from '@mui/material';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { googleAuthService } from '../../lib/googleAuth';
 
 const BG = '#F8F9FA';
 const CARD = '#FFFFFF';
@@ -93,7 +94,74 @@ function FieldLabel({ children }: { children: string }) {
 
 const HomePage = () => {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  useEffect(() => {
+    googleAuthService.initialize();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const result = await googleAuthService.signIn();
+      if (result) {
+        localStorage.setItem('authToken', result.token);
+        localStorage.setItem('authUser', JSON.stringify(result.user));
+        await router.replace('/dashboard');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setError('');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Please enter your email');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data?.error || 'Invalid email or password');
+        return;
+      }
+
+      if (data?.token) {
+        localStorage.setItem('authToken', data.token);
+      }
+      if (data?.user) {
+        localStorage.setItem('authUser', JSON.stringify(data.user));
+      }
+      await router.replace('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box
@@ -145,6 +213,8 @@ const HomePage = () => {
                 variant="filled"
                 hiddenLabel
                 placeholder="name@company.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 InputProps={{ disableUnderline: true }}
                 sx={fieldSx}
               />
@@ -157,6 +227,8 @@ const HomePage = () => {
                 variant="filled"
                 hiddenLabel
                 type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 InputProps={{
                   disableUnderline: true,
                   endAdornment: (
@@ -195,10 +267,21 @@ const HomePage = () => {
             </Box>
           </Stack>
 
+          {error ? (
+            <Typography
+              variant="body2"
+              sx={{ color: '#B00020', fontWeight: 600, mt: 1 }}
+            >
+              {error}
+            </Typography>
+          ) : null}
+
           <Button
             fullWidth
             variant="contained"
             size="large"
+            disabled={loading}
+            onClick={handleLogin}
             sx={{
               py: 1.35,
               fontWeight: 700,
@@ -213,7 +296,7 @@ const HomePage = () => {
               },
             }}
           >
-            Log in
+            {loading ? 'Logging in…' : 'Log in'}
           </Button>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 0.5 }}>
@@ -237,6 +320,8 @@ const HomePage = () => {
             variant="outlined"
             size="large"
             startIcon={<GoogleIcon />}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
             sx={{
               py: 1.25,
               fontWeight: 600,
@@ -252,7 +337,7 @@ const HomePage = () => {
               },
             }}
           >
-            Sign in with Google
+            {googleLoading ? 'Signing in...' : 'Sign in with Google'}
           </Button>
 
           <Typography

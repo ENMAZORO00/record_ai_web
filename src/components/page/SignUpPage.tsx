@@ -12,7 +12,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { googleAuthService } from '../../lib/googleAuth';
 
 const BG = '#F0F1F3';
 const CARD = '#FFFFFF';
@@ -91,6 +92,30 @@ function FieldLabel({ children }: { children: string }) {
 
 const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    googleAuthService.initialize();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await googleAuthService.signIn();
+      if (result) {
+        // Handle successful sign-in
+        localStorage.setItem('authToken', result.token);
+        localStorage.setItem('authUser', JSON.stringify(result.user));
+        // Redirect to dashboard
+        window.location.href = '/dashboard';
+      }
+    } catch (error) {
+      console.error('Google sign-in failed:', error);
+      // Handle error (show toast, etc.)
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <Box
@@ -159,6 +184,8 @@ const SignUpPage = () => {
             variant="outlined"
             size="large"
             startIcon={<GoogleIcon />}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
             sx={{
               py: 1.25,
               fontWeight: 600,
@@ -174,7 +201,7 @@ const SignUpPage = () => {
               },
             }}
           >
-            Continue with Google
+            {googleLoading ? 'Signing in...' : 'Continue with Google'}
           </Button>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
