@@ -1,13 +1,9 @@
 import { FONTFAMILY } from '@/src/lib/constants/font';
-import MenuIcon from '@mui/icons-material/Menu';
+
 import {
   AppBar,
   Box,
-  Button,
   Chip,
-  IconButton,
-  Menu,
-  MenuItem,
   Stack,
   Toolbar,
   Tooltip,
@@ -24,18 +20,6 @@ const navItems = [
 ];
 
 function WebsiteNavbar() {
-  // State for the dropdown menu
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-
-  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
-
   return (
     <AppBar
       position="sticky"
