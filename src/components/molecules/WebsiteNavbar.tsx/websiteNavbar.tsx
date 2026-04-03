@@ -9,15 +9,6 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
-
-const navItems = [
-  { label: 'Shoten Story', href: '/shoten-story' },
-  { label: 'Features', href: '/#features' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Security', href: '/security' },
-  { label: 'Blog', href: '/blog' },
-];
 
 function WebsiteNavbar() {
   return (
