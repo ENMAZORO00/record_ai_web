@@ -14,6 +14,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useRouter } from 'next/router';
 import { useState } from 'react';
 
 const BG = '#F8F9FA';
@@ -91,6 +92,7 @@ function FieldLabel({ children }: { children: string }) {
 }
 
 const HomePage = () => {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -179,7 +181,7 @@ const HomePage = () => {
                 sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.75 }}
               >
                 <Link
-                  href="#"
+                  href="/forgetPassword"
                   underline="hover"
                   sx={{
                     fontSize: '0.8125rem',
@@ -260,7 +262,7 @@ const HomePage = () => {
           >
             Don&apos;t have an account?{' '}
             <Link
-              href="#"
+              href="/signup"
               underline="hover"
               sx={{ fontWeight: 600, color: BRAND_RED }}
             >
@@ -269,6 +271,7 @@ const HomePage = () => {
           </Typography>
 
           <Box
+            onClick={() => router.push('/registerCompany')}
             sx={{
               display: 'flex',
               alignItems: 'center',

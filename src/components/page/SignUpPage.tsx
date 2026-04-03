@@ -103,7 +103,6 @@ const SignUpPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        
       }}
     >
       <Typography
@@ -251,31 +250,7 @@ const SignUpPage = () => {
               />
             </Box>
           </Stack>
-
-          <Typography
-            variant="caption"
-            component="p"
-            textAlign="center"
-            sx={{ color: MUTED_GRAY, lineHeight: 1.6, px: 0.5 }}
-          >
-            By creating an account, you agree to our{' '}
-            <Link
-              href="#"
-              underline="hover"
-              sx={{ fontWeight: 700, color: LINK_BLUE }}
-            >
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link
-              href="#"
-              underline="hover"
-              sx={{ fontWeight: 700, color: LINK_BLUE }}
-            >
-              Privacy Policy
-            </Link>
-            .
-          </Typography>
+          {/*  */}
 
           <Button
             fullWidth
