@@ -20,7 +20,6 @@ const BRAND_RED = '#D32F2F';
 const BRAND_RED_DEEP = '#B21E1E';
 const INPUT_BG = '#F1F3F5';
 const MUTED_GRAY = '#868E96';
-const LINK_BLUE = '#1E40AF';
 
 function GoogleIcon() {
   return (
