@@ -118,7 +118,9 @@ const HomePage = () => {
         await router.replace('/dashboard');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Google sign-in failed');
+      setError(
+        error instanceof Error ? error.message : 'Google sign-in failed'
+      );
     } finally {
       setGoogleLoading(false);
     }

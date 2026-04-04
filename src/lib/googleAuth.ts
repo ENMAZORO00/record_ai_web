@@ -14,7 +14,9 @@ interface GoogleAccountsId {
     client_id: string;
     callback: (response: GoogleCredentialResponse) => void;
   }) => void;
-  prompt: (momentListener: (notification: GooglePromptMomentNotification) => void) => void;
+  prompt: (
+    momentListener: (notification: GooglePromptMomentNotification) => void
+  ) => void;
   renderButton: (
     container: HTMLElement | null,
     options: {
@@ -112,16 +114,22 @@ export class GoogleAuthService {
       });
 
       // Prompt the user to sign in
-      window.google.accounts.id.prompt((notification: GooglePromptMomentNotification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // User cancelled or skipped
-          resolve(null);
+      window.google.accounts.id.prompt(
+        (notification: GooglePromptMomentNotification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // User cancelled or skipped
+            resolve(null);
+          }
         }
-      });
+      );
     });
   }
 
-  renderButton(elementId: string, onSuccess?: (response: AuthResponse) => void, onError?: (error: Error) => void): void {
+  renderButton(
+    elementId: string,
+    onSuccess?: (response: AuthResponse) => void,
+    onError?: (error: Error) => void
+  ): void {
     if (typeof window === 'undefined' || !window.google) {
       console.error('Google Identity Services not loaded');
       return;
@@ -144,15 +152,12 @@ export class GoogleAuthService {
       },
     });
 
-    window.google.accounts.id.renderButton(
-      document.getElementById(elementId),
-      {
-        theme: 'outline',
-        size: 'large',
-        type: 'standard',
-        shape: 'rectangular',
-      }
-    );
+    window.google.accounts.id.renderButton(document.getElementById(elementId), {
+      theme: 'outline',
+      size: 'large',
+      type: 'standard',
+      shape: 'rectangular',
+    });
   }
 
   async signOut(): Promise<void> {

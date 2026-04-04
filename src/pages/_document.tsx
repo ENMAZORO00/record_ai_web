@@ -5,7 +5,11 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <link rel="icon" href="https://www.shotenai.com/favicon.ico" />
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script
+          src="https://accounts.google.com/gsi/client"
+          async
+          defer
+        ></script>
       </Head>
       <body>
         <Main />
