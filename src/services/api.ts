@@ -57,6 +57,15 @@ class ApiService {
       body: JSON.stringify({ name, email, password }),
     });
   }
+
+  async logout(token: string) {
+    return this.request('/auth/logout', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
 }
 
 export const apiService = new ApiService();

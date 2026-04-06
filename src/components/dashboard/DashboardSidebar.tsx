@@ -21,6 +21,7 @@ import {
 import { DASHBOARD_NAV_ITEMS } from '@/src/config/dashboardNav';
 import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
 import { FONTFAMILY } from '@/src/lib/constants/font';
+import { apiService } from '@/src/services/api';
 
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -44,12 +45,26 @@ export default function DashboardSidebar({
   const chatId =
     typeof router.query.chatId === 'string' ? router.query.chatId : null;
 
-  const { filteredThreads, historySearch, setHistorySearch, createEmptyThread } =
-    useChatThreads();
+  const {
+    filteredThreads,
+    historySearch,
+    setHistorySearch,
+    createEmptyThread,
+  } = useChatThreads();
 
   const handleNewChat = () => {
     const id = createEmptyThread();
     router.push(`/dashboard/chat/${id}`);
+  };
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      await apiService.logout(token);
+    }
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    router.push('/');
   };
 
   return (
@@ -193,7 +208,11 @@ export default function DashboardSidebar({
             );
 
             return (
-              <ListItem key={href} disablePadding sx={{ display: 'block', mb: 0.5 }}>
+              <ListItem
+                key={href}
+                disablePadding
+                sx={{ display: 'block', mb: 0.5 }}
+              >
                 {collapsed ? (
                   <Tooltip title={label} placement="right">
                     {itemButton}
@@ -285,7 +304,9 @@ export default function DashboardSidebar({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                      <SearchIcon
+                        sx={{ fontSize: 18, color: 'text.disabled' }}
+                      />
                     </InputAdornment>
                   ),
                   sx: {
@@ -381,6 +402,7 @@ export default function DashboardSidebar({
           <Tooltip title="Sign Out" placement="right">
             <IconButton
               aria-label="Sign Out"
+              onClick={handleLogout}
               sx={{
                 color: 'text.secondary',
                 '&:hover': { bgcolor: 'action.hover' },
@@ -394,6 +416,7 @@ export default function DashboardSidebar({
             <Button
               fullWidth
               startIcon={<LogoutOutlinedIcon sx={{ fontSize: 22 }} />}
+              onClick={handleLogout}
               sx={{
                 justifyContent: 'flex-start',
                 px: 1,
