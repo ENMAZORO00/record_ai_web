@@ -124,6 +124,49 @@ class ApiService {
       },
     });
   }
+
+  async getInformation(token: string) {
+    return this.request<
+      {
+        id: string;
+        title: string | null;
+        text: string;
+        createdAt: string;
+      }[]
+    >('/information', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async createInformation(
+    data: { title?: string; text: string },
+    token: string
+  ) {
+    return this.request<{
+      id: string;
+      title: string | null;
+      text: string;
+      createdAt: string;
+    }>('/information', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInformation(id: string, token: string) {
+    return this.request(`/information/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
 }
 
 export const apiService = new ApiService();
