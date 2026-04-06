@@ -22,6 +22,20 @@ interface VerifyOtpResponse {
   token: string;
 }
 
+interface RegisterCompanyResponse {
+  company: {
+    id: string;
+    name: string;
+    verified: boolean;
+  };
+  user: User & {
+    companyId: string;
+    companyRole: string;
+    companyName: string;
+    companyVerified: boolean;
+  };
+}
+
 class ApiService {
   private async request<T = unknown>(
     endpoint: string,
@@ -73,6 +87,13 @@ class ApiService {
     return this.request<VerifyOtpResponse>('/auth/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, otp, name, password }),
+    });
+  }
+
+  async registerCompanyPublic(email: string, companyName: string) {
+    return this.request<RegisterCompanyResponse>('/companies/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, companyName }),
     });
   }
 

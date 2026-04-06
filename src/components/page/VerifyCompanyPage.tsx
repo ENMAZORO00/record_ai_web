@@ -1,16 +1,21 @@
+'use client';
+
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import MailOutline from '@mui/icons-material/MailOutline';
 import {
   Box,
   Button,
+  CircularProgress,
   Divider,
   Link,
   Paper,
   Stack,
   Typography,
 } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from 'react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiService } from '@/src/services/api';
 
 const PAGE_BG = '#F3F4F6';
 const CARD_BG = '#FFFFFF';
@@ -22,14 +27,51 @@ const SUBTITLE_GREY = '#64748B';
 const RESEND_HINT = '#94A3B8';
 const LINK_PURPLE = '#553CFB';
 const FOOTER_GREY = '#64748B';
+const ERROR_RED = '#D32F2F';
+const MUTED_GRAY = '#868E96';
 
 const OTP_LEN = 6;
 
+interface VerifyParams {
+  email: string;
+  name: string;
+  password: string;
+  companyName: string;
+}
+
 const VerifyCompanyPage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [digits, setDigits] = useState<string[]>(() =>
     Array.from({ length: OTP_LEN }, () => '')
   );
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [error, setError] = useState('');
+  const [params, setParams] = useState<VerifyParams | null>(null);
+  const [paramError, setParamError] = useState(false);
+
+  // Extract and validate query parameters
+  useEffect(() => {
+    try {
+      const email = searchParams.get('email');
+      const name = searchParams.get('name');
+      const password = searchParams.get('password');
+      const companyName = searchParams.get('companyName');
+
+      if (!email || !name || !password || !companyName) {
+        setParamError(true);
+        return;
+      }
+
+      setParams({ email, name, password, companyName });
+    } catch {
+      setParamError(true);
+    }
+  }, [searchParams]);
 
   const focusAt = useCallback((index: number) => {
     const el = inputsRef.current[index];
@@ -91,6 +133,158 @@ const VerifyCompanyPage = () => {
     focusAt(Math.max(0, lastFilled));
   };
 
+  // Validate OTP
+  const validateOtp = (): boolean => {
+    const otp = digits.join('');
+    if (!otp || otp.length !== OTP_LEN) {
+      setError('Please enter the 6-digit code');
+      return false;
+    }
+    return true;
+  };
+
+  // Handle verify and register
+  const handleVerifyAndRegister = async () => {
+    if (!params) {
+      setError('Missing registration data. Please go back and try again.');
+      return;
+    }
+
+    if (!validateOtp()) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const otp = digits.join('');
+
+      // Step 1: Verify OTP
+      const verifyResponse = await apiService.verifyOtp(
+        params.email,
+        otp,
+        params.name,
+        params.password
+      );
+
+      if (verifyResponse.error) {
+        setError(verifyResponse.error || 'Invalid or expired OTP');
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Register company (no auth required)
+      const companyResponse = await apiService.registerCompanyPublic(
+        params.email,
+        params.companyName
+      );
+
+      if (companyResponse.error) {
+        setError(companyResponse.error || 'Failed to register company');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Navigate to the app dashboard after company registration
+      router.push('/dashboard');
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'An unexpected error occurred. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle resend OTP
+  const handleResend = async () => {
+    if (!params) {
+      setError('Missing registration data. Please go back and try again.');
+      return;
+    }
+
+    setResending(true);
+    setError('');
+
+    try {
+      const response = await apiService.signup(
+        params.name,
+        params.email,
+        params.password
+      );
+
+      if (response.error) {
+        setError(response.error || 'Failed to resend OTP');
+      } else {
+        setError('');
+        setDigits(Array.from({ length: OTP_LEN }, () => ''));
+        focusAt(0);
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to resend OTP';
+      setError(errorMessage);
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // Redirect if params are missing
+  if (paramError) {
+    return (
+      <Box
+        sx={{
+          minHeight: 'calc(100dvh - 72px)',
+          width: '100%',
+          bgcolor: PAGE_BG,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            width: '100%',
+            maxWidth: 440,
+            bgcolor: CARD_BG,
+            borderRadius: '24px',
+            boxShadow: '0px 8px 32px rgba(15, 23, 42, 0.08)',
+            px: { xs: 3, sm: 5 },
+            py: { xs: 4, sm: 5 },
+            textAlign: 'center',
+          }}
+        >
+          <Typography
+            variant="body1"
+            sx={{ color: ERROR_RED, fontWeight: 600, mb: 2 }}
+          >
+            Missing registration data
+          </Typography>
+          <Typography variant="body2" sx={{ color: SUBTITLE_GREY, mb: 3 }}>
+            Please go back to the registration page and try again.
+          </Typography>
+          <Link
+            href="/registerCompany"
+            underline="none"
+            sx={{
+              display: 'inline-block',
+              fontWeight: 600,
+              color: LINK_PURPLE,
+              '&:hover': {
+                color: '#4529C4',
+              },
+            }}
+          >
+            ← Back to registration
+          </Link>
+        </Paper>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -101,6 +295,8 @@ const VerifyCompanyPage = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        px: 2,
+        py: 4,
       }}
     >
       <Paper
@@ -170,7 +366,7 @@ const VerifyCompanyPage = () => {
               fontSize: '0.875rem',
             }}
           >
-            Enter the 6-digit code sent to your email
+            Enter the 6-digit code sent to {params?.email}
           </Typography>
 
           <Stack
@@ -191,6 +387,7 @@ const VerifyCompanyPage = () => {
                 maxLength={1}
                 placeholder="0"
                 value={value}
+                disabled={loading}
                 aria-label={`Digit ${index + 1} of ${OTP_LEN}`}
                 onChange={(e: ChangeEvent<HTMLInputElement>) =>
                   handleChange(index, e)
@@ -211,6 +408,8 @@ const VerifyCompanyPage = () => {
                   borderRadius: '8px',
                   outline: 'none',
                   fontFamily: 'inherit',
+                  cursor: loading ? 'not-allowed' : 'text',
+                  opacity: loading ? 0.6 : 1,
                   '&::placeholder': {
                     color: '#94A3B8',
                     opacity: 1,
@@ -224,10 +423,31 @@ const VerifyCompanyPage = () => {
             ))}
           </Stack>
 
+          {/* Error message */}
+          {error && (
+            <Typography
+              sx={{
+                color: ERROR_RED,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textAlign: 'center',
+                p: 1,
+                mb: 1.5,
+                bgcolor: 'rgba(211, 47, 47, 0.08)',
+                borderRadius: '6px',
+                width: '100%',
+              }}
+            >
+              {error}
+            </Typography>
+          )}
+
           <Button
             fullWidth
             variant="contained"
             size="large"
+            disabled={loading}
+            onClick={handleVerifyAndRegister}
             sx={{
               py: 1.5,
               fontWeight: 700,
@@ -241,9 +461,20 @@ const VerifyCompanyPage = () => {
                 bgcolor: BRAND_RED_HOVER,
                 boxShadow: '0px 12px 32px rgba(211, 47, 47, 0.4)',
               },
+              '&:disabled': {
+                bgcolor: MUTED_GRAY,
+                opacity: 0.6,
+              },
             }}
           >
-            Verify & Continue
+            {loading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={20} sx={{ color: 'white' }} />
+                Verifying...
+              </Box>
+            ) : (
+              'Verify & Continue'
+            )}
           </Button>
 
           <Typography
@@ -259,10 +490,11 @@ const VerifyCompanyPage = () => {
             Didn&apos;t receive the code?
           </Typography>
 
-          <Link
+          <Button
             component="button"
             type="button"
-            underline="none"
+            disabled={resending || loading}
+            onClick={handleResend}
             sx={{
               mt: 0.5,
               fontWeight: 600,
@@ -272,13 +504,25 @@ const VerifyCompanyPage = () => {
               border: 'none',
               background: 'none',
               fontFamily: 'inherit',
+              p: 0,
+              textTransform: 'none',
               '&:hover': {
                 color: '#4529C4',
               },
+              '&:disabled': {
+                opacity: 0.6,
+              },
             }}
           >
-            Resend code
-          </Link>
+            {resending ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <CircularProgress size={14} />
+                Resending...
+              </Box>
+            ) : (
+              'Resend code'
+            )}
+          </Button>
 
           <Divider
             sx={{
