@@ -1,6 +1,8 @@
 import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material';
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from 'react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { apiService } from '../../services/api';
 
 const BG = '#F9F9F9';
 const CARD = '#FFFFFF';
@@ -14,9 +16,31 @@ const OTP_LEN = 6;
 
 const VerifyEmailPage = () => {
   const [digits, setDigits] = useState<string[]>(() =>
-    Array.from({ length: OTP_LEN }, () => ''),
+    Array.from({ length: OTP_LEN }, () => '')
   );
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const [tempData, setTempData] = useState<{
+    email: string;
+    name: string;
+    password: string;
+  } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem('signupTempData');
+      return data ? JSON.parse(data) : null;
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!tempData) {
+      // No temp data, redirect to signup
+      router.push('/signup');
+    }
+  }, [tempData, router]);
 
   const focusAt = useCallback((index: number) => {
     const el = inputsRef.current[index];
@@ -67,12 +91,70 @@ const VerifyEmailPage = () => {
 
   const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
+    const text = e.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, OTP_LEN);
     if (!text) return;
     const next = Array.from({ length: OTP_LEN }, (_, i) => text[i] ?? '');
     setDigits(next);
     const lastFilled = Math.min(text.length, OTP_LEN) - 1;
     focusAt(Math.max(0, lastFilled));
+  };
+
+  const handleVerify = async () => {
+    if (!tempData) return;
+
+    const otp = digits.join('');
+    if (otp.length !== OTP_LEN) {
+      setError('Please enter the complete 6-digit code');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    const result = await apiService.verifyOtp(
+      tempData.email,
+      otp,
+      tempData.name,
+      tempData.password
+    );
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else if (result.data) {
+      // Success
+      localStorage.setItem('authToken', result.data.token);
+      localStorage.setItem('authUser', JSON.stringify(result.data.user));
+      localStorage.removeItem('signupTempData');
+      // Redirect to dashboard
+      router.push('/dashboard');
+    }
+  };
+
+  const handleResend = async () => {
+    if (!tempData) return;
+
+    setError('');
+    setResendLoading(true);
+
+    const result = await apiService.signup(
+      tempData.name,
+      tempData.email,
+      tempData.password
+    );
+    setResendLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      // Reset digits
+      setDigits(Array.from({ length: OTP_LEN }, () => ''));
+      focusAt(0);
+      // Could show a success message
+    }
   };
 
   return (
@@ -129,8 +211,8 @@ const VerifyEmailPage = () => {
               fontSize: '0.875rem',
             }}
           >
-            We&apos;ve sent a 6-digit code to your email. Please enter it below to
-            continue.
+            We&apos;ve sent a 6-digit code to your email. Please enter it below
+            to continue.
           </Typography>
 
           <Stack
@@ -182,6 +264,8 @@ const VerifyEmailPage = () => {
             fullWidth
             variant="contained"
             size="large"
+            onClick={handleVerify}
+            disabled={loading || !tempData}
             sx={{
               py: 1.5,
               fontWeight: 700,
@@ -195,30 +279,53 @@ const VerifyEmailPage = () => {
                 bgcolor: '#C62828',
                 boxShadow: 'none',
               },
+              '&:disabled': {
+                bgcolor: '#ccc',
+                color: '#666',
+              },
             }}
           >
-            Verify & Continue
+            {loading ? 'Verifying...' : 'Verify & Continue'}
           </Button>
+
+          {error && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: BRAND_RED,
+                textAlign: 'center',
+                fontWeight: 500,
+                mt: 1,
+              }}
+            >
+              {error}
+            </Typography>
+          )}
 
           <Link
             component="button"
             type="button"
             underline="none"
+            onClick={handleResend}
+            disabled={resendLoading || !tempData}
             sx={{
               mt: 2.5,
               fontWeight: 600,
               fontSize: '0.9375rem',
               color: LINK_PURPLE,
-              cursor: 'pointer',
+              cursor: resendLoading ? 'not-allowed' : 'pointer',
               border: 'none',
               background: 'none',
               fontFamily: 'inherit',
               '&:hover': {
-                color: '#4529C4',
+                color: resendLoading ? LINK_PURPLE : '#4529C4',
+              },
+              '&:disabled': {
+                color: '#ccc',
               },
             }}
           >
-            Resend Code
+            {resendLoading ? 'Sending...' : 'Resend Code'}
           </Link>
         </Stack>
       </Paper>

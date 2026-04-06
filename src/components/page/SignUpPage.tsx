@@ -12,8 +12,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { googleAuthService } from '../../lib/googleAuth';
+import { apiService } from '../../services/api';
 
 const BG = '#F0F1F3';
 const CARD = '#FFFFFF';
@@ -93,10 +95,55 @@ function FieldLabel({ children }: { children: string }) {
 const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  useEffect(() => {
-    googleAuthService.initialize();
-  }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password) {
+      setError('All fields are required');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    const result = await apiService.signup(
+      formData.name,
+      formData.email,
+      formData.password
+    );
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else if (result.data) {
+      // Store temp data for verification
+      localStorage.setItem(
+        'signupTempData',
+        JSON.stringify({
+          email: result.data.email,
+          name: formData.name,
+          password: formData.password,
+        })
+      );
+      // Navigate to verify email
+      router.push('/verifyEmail');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -156,7 +203,12 @@ const SignUpPage = () => {
           py: { xs: 3.5, sm: 4.5 },
         }}
       >
-        <Stack spacing={3} alignItems="stretch">
+        <Stack
+          spacing={3}
+          alignItems="stretch"
+          component="form"
+          onSubmit={handleSubmit}
+        >
           <Box textAlign="center">
             <Typography
               variant="h4"
@@ -228,6 +280,10 @@ const SignUpPage = () => {
                 variant="filled"
                 hiddenLabel
                 placeholder="Enter your full name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 InputProps={{ disableUnderline: true }}
                 sx={fieldSx}
               />
@@ -241,6 +297,10 @@ const SignUpPage = () => {
                 hiddenLabel
                 type="email"
                 placeholder="name@company.com"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
                 InputProps={{ disableUnderline: true }}
                 sx={fieldSx}
               />
@@ -254,6 +314,10 @@ const SignUpPage = () => {
                 hiddenLabel
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Min. 8 characters"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, password: e.target.value }))
+                }
                 InputProps={{
                   disableUnderline: true,
                   endAdornment: (
@@ -276,12 +340,22 @@ const SignUpPage = () => {
               />
             </Box>
           </Stack>
-          {/*  */}
+
+          {error && (
+            <Typography
+              variant="body2"
+              sx={{ color: BRAND_RED, textAlign: 'center', fontWeight: 500 }}
+            >
+              {error}
+            </Typography>
+          )}
 
           <Button
             fullWidth
             variant="contained"
             size="large"
+            type="submit"
+            disabled={loading}
             sx={{
               py: 1.5,
               fontWeight: 700,
@@ -295,9 +369,13 @@ const SignUpPage = () => {
                 background: `linear-gradient(180deg, #C62828 0%, #9A1818 100%)`,
                 boxShadow: '0 12px 32px rgba(178, 30, 30, 0.5)',
               },
+              '&:disabled': {
+                background: '#ccc',
+                boxShadow: 'none',
+              },
             }}
           >
-            Create Account
+            {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
 
           <Typography

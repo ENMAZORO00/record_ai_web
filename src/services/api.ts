@@ -11,6 +11,17 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
+interface SignupResponse {
+  message: string;
+  email: string;
+  tempData: { name: string; password: string };
+}
+
+interface VerifyOtpResponse {
+  user: User;
+  token: string;
+}
+
 class ApiService {
   private async request<T = unknown>(
     endpoint: string,
@@ -52,9 +63,16 @@ class ApiService {
   }
 
   async signup(name: string, email: string, password: string) {
-    return this.request<{ user: User; token: string }>('/auth/signup', {
+    return this.request<SignupResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ name, email, password }),
+    });
+  }
+
+  async verifyOtp(email: string, otp: string, name: string, password: string) {
+    return this.request<VerifyOtpResponse>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, name, password }),
     });
   }
 
