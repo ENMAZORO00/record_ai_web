@@ -1,6 +1,20 @@
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import { Box, Button, InputAdornment, Link, Paper, Stack, TextField, Typography } from '@mui/material';
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import {
+  Alert,
+  Box,
+  Button,
+  InputAdornment,
+  Link,
+  Paper,
+  Snackbar,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { apiService } from '../../services/api';
 
 const BG = '#F0F1F3';
 const CARD = '#FFFFFF';
@@ -28,6 +42,50 @@ function FieldLabel({ children }: { children: string }) {
 }
 
 const ForgetPassword = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ error: '', success: '' });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+    setFeedback({ error: '', success: '' });
+  };
+
+  const handleSendResetCode = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      setFeedback({ error: 'Please enter your email address.', success: '' });
+      return;
+    }
+
+    setLoading(true);
+    setFeedback({ error: '', success: '' });
+
+    const response = await apiService.forgotPassword(normalizedEmail);
+    setLoading(false);
+
+    if (response.error) {
+      setFeedback({ error: response.error, success: '' });
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setFeedback({
+      error: '',
+      success: 'Reset code sent. Redirecting to reset password...',
+    });
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+      router.push({
+        pathname: '/resetPassword',
+        query: { email: normalizedEmail },
+      });
+    }, 900);
+  };
+
   return (
     <Box
       sx={{
@@ -96,10 +154,14 @@ const ForgetPassword = () => {
             </Typography>
             <Typography
               variant="body2"
-              sx={{ color: MUTED_GRAY, lineHeight: 1.6, px: { xs: 0, sm: 0.5 } }}
+              sx={{
+                color: MUTED_GRAY,
+                lineHeight: 1.6,
+                px: { xs: 0, sm: 0.5 },
+              }}
             >
-              Enter the email linked to your account. We&apos;ll send you a verification code to reset
-              your password.
+              Enter the email linked to your account. We&apos;ll send you a
+              verification code to reset your password.
             </Typography>
           </Box>
 
@@ -109,6 +171,8 @@ const ForgetPassword = () => {
               fullWidth
               type="email"
               placeholder="Email Address"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               variant="outlined"
               InputProps={{
                 startAdornment: (
@@ -149,6 +213,8 @@ const ForgetPassword = () => {
             variant="contained"
             size="large"
             endIcon={<ArrowForwardIcon sx={{ fontSize: 20 }} />}
+            onClick={handleSendResetCode}
+            disabled={!email.trim() || loading}
             sx={{
               mt: 0.5,
               py: 1.5,
@@ -193,6 +259,21 @@ const ForgetPassword = () => {
           </Box>
         </Stack>
       </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={feedback.error ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {feedback.error || feedback.success}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

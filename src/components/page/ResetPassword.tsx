@@ -4,18 +4,22 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import {
+  Alert,
   Box,
   Button,
   IconButton,
   InputAdornment,
   Link,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from 'react';
 import { useCallback, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
+import { apiService } from '../../services/api';
 
 const BG = '#F0F1F3';
 const CARD = '#FFFFFF';
@@ -54,12 +58,39 @@ const passwordFieldSx = {
   },
 } as const;
 
+const FieldLabel = ({ children }: { children: string }) => (
+  <Typography
+    component="label"
+    variant="body2"
+    sx={{
+      display: 'block',
+      fontWeight: 700,
+      color: '#212529',
+      mb: 0.75,
+      fontSize: '0.8125rem',
+    }}
+  >
+    {children}
+  </Typography>
+);
+
 const ResetPassword = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [hasEditedEmail, setHasEditedEmail] = useState(false);
+  const queryEmail =
+    typeof router.query.email === 'string' ? router.query.email : '';
+  const effectiveEmail = hasEditedEmail ? email : queryEmail;
   const [digits, setDigits] = useState<string[]>(() =>
-    Array.from({ length: OTP_LEN }, () => ''),
+    Array.from({ length: OTP_LEN }, () => '')
   );
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ error: '', success: '' });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const focusAt = useCallback((index: number) => {
@@ -94,7 +125,10 @@ const ResetPassword = () => {
     if (char && index < OTP_LEN - 1) focusAt(index + 1);
   };
 
-  const handleOtpKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (
+    index: number,
+    e: KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === 'Backspace' && !digits[index] && index > 0) {
       e.preventDefault();
       focusAt(index - 1);
@@ -111,12 +145,90 @@ const ResetPassword = () => {
 
   const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
+    const text = e.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, OTP_LEN);
     if (!text) return;
     const next = Array.from({ length: OTP_LEN }, (_, i) => text[i] ?? '');
     setDigits(next);
     const lastFilled = Math.min(text.length, OTP_LEN) - 1;
     focusAt(Math.max(0, lastFilled));
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+    setFeedback({ error: '', success: '' });
+  };
+
+  const handleResetPassword = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+    const normalizedEmail = effectiveEmail.trim();
+    const otp = digits.join('');
+
+    if (!normalizedEmail) {
+      setFeedback({
+        error: 'Email is required to reset your password.',
+        success: '',
+      });
+      setSnackbarOpen(true);
+      return;
+    }
+    if (otp.length !== OTP_LEN) {
+      setFeedback({
+        error: 'Please enter the full 6-digit code.',
+        success: '',
+      });
+      setSnackbarOpen(true);
+      return;
+    }
+    if (!newPassword || !confirmPassword) {
+      setFeedback({
+        error: 'Please enter and confirm your new password.',
+        success: '',
+      });
+      setSnackbarOpen(true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFeedback({ error: 'Passwords do not match.', success: '' });
+      setSnackbarOpen(true);
+      return;
+    }
+    if (newPassword.length < 6) {
+      setFeedback({
+        error: 'Password must be at least 6 characters.',
+        success: '',
+      });
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    setFeedback({ error: '', success: '' });
+
+    const response = await apiService.resetPassword(
+      normalizedEmail,
+      otp,
+      newPassword,
+      confirmPassword
+    );
+
+    setLoading(false);
+    if (response.error) {
+      setFeedback({ error: response.error, success: '' });
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setFeedback({
+      success: 'Password reset successfully! Redirecting to sign in...',
+      error: '',
+    });
+    setSnackbarOpen(true);
+    setTimeout(() => router.push('/'), 800);
   };
 
   return (
@@ -130,7 +242,7 @@ const ResetPassword = () => {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        
+
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -162,6 +274,8 @@ const ResetPassword = () => {
 
       <Paper
         elevation={0}
+        component="form"
+        onSubmit={handleResetPassword}
         sx={{
           position: 'relative',
           zIndex: 1,
@@ -213,6 +327,50 @@ const ResetPassword = () => {
             >
               Create a strong new password
             </Typography>
+          </Box>
+
+          <Box>
+            <FieldLabel>Email Address</FieldLabel>
+            <TextField
+              fullWidth
+              type="email"
+              id="reset-email"
+              placeholder="Enter your email"
+              value={effectiveEmail}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setHasEditedEmail(true);
+              }}
+              variant="filled"
+              InputProps={{
+                disableUnderline: true,
+                sx: { py: 1.75, fontSize: '0.95rem' },
+              }}
+              sx={{
+                '& .MuiFilledInput-root': {
+                  backgroundColor: PASSWORD_FIELD_BG,
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    backgroundColor: PASSWORD_FIELD_BG,
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: PASSWORD_FIELD_BG,
+                  },
+                  '&::before, &::after': {
+                    display: 'none',
+                  },
+                },
+                '& .MuiFilledInput-input': {
+                  py: 1.75,
+                  fontSize: '0.95rem',
+                  '&::placeholder': {
+                    color: MUTED_GRAY,
+                    opacity: 1,
+                  },
+                },
+              }}
+            />
           </Box>
 
           <Box>
@@ -281,19 +439,26 @@ const ResetPassword = () => {
               fullWidth
               variant="filled"
               hiddenLabel
+              id="new-password"
               type={showNewPassword ? 'text' : 'password'}
               placeholder="New Password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
               InputProps={{
                 disableUnderline: true,
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: MUTED_GRAY, fontSize: 22 }} />
+                    <LockOutlinedIcon
+                      sx={{ color: MUTED_GRAY, fontSize: 22 }}
+                    />
                   </InputAdornment>
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      aria-label={
+                        showNewPassword ? 'Hide password' : 'Show password'
+                      }
                       onClick={() => setShowNewPassword((v) => !v)}
                       edge="end"
                       size="small"
@@ -315,13 +480,18 @@ const ResetPassword = () => {
               fullWidth
               variant="filled"
               hiddenLabel
+              id="confirm-password"
               type={showConfirmPassword ? 'text' : 'password'}
               placeholder="Confirm New Password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
               InputProps={{
                 disableUnderline: true,
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlinedIcon sx={{ color: MUTED_GRAY, fontSize: 22 }} />
+                    <LockOutlinedIcon
+                      sx={{ color: MUTED_GRAY, fontSize: 22 }}
+                    />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -350,9 +520,11 @@ const ResetPassword = () => {
 
           <Button
             fullWidth
+            type="submit"
             variant="contained"
             size="large"
             startIcon={<VpnKeyIcon sx={{ fontSize: 20 }} />}
+            disabled={loading}
             sx={{
               py: 1.5,
               fontWeight: 700,
@@ -368,7 +540,7 @@ const ResetPassword = () => {
               },
             }}
           >
-            Reset Password
+            {loading ? 'Resetting...' : 'Reset Password'}
           </Button>
 
           <Box sx={{ textAlign: 'center' }}>
@@ -376,6 +548,7 @@ const ResetPassword = () => {
               component="button"
               type="button"
               underline="none"
+              onClick={() => router.push('/forgetPassword')}
               sx={{
                 fontWeight: 700,
                 fontSize: '0.875rem',
@@ -394,6 +567,21 @@ const ResetPassword = () => {
           </Box>
         </Stack>
       </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={feedback.error ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {feedback.error || feedback.success}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

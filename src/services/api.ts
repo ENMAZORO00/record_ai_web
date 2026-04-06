@@ -58,6 +58,25 @@ class ApiService {
     });
   }
 
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+    confirmPassword: string
+  ) {
+    return this.request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword, confirmPassword }),
+    });
+  }
+
   async logout(token: string) {
     return this.request('/auth/logout', {
       method: 'POST',
