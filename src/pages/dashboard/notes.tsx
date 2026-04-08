@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { ReactElement } from 'react';
+import { getDashboardLayout } from '@/src/lib/getDashboardLayout';
 import {
   Box,
   Typography,
@@ -31,7 +33,7 @@ interface Info {
   createdAt: string;
 }
 
-export default function Page() {
+function Page() {
   const router = useRouter();
 
   const [data, setData] = useState<Info[]>([]);
@@ -248,3 +250,9 @@ export default function Page() {
     </Box>
   );
 }
+
+Page.getLayout = function getLayout(page: ReactElement) {
+  return getDashboardLayout(page);
+};
+
+export default Page;

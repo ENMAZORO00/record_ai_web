@@ -36,8 +36,26 @@ interface RegisterCompanyResponse {
   };
 }
 
+export interface Conversation {
+  id: string;
+  speaker: string;
+  text: string;
+  transcriptId: string;
+}
+
+export interface Transcript {
+  id: string;
+  recordingUrl?: string;
+  status: string;
+  userId: string;
+  meetingId?: string;
+  createdAt: string;
+  Conversation: Conversation[];
+  isOwner?: boolean;
+}
+
 class ApiService {
-  private async request<T = unknown>(
+  public async request<T = unknown>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
@@ -162,6 +180,26 @@ class ApiService {
   async deleteInformation(id: string, token: string) {
     return this.request(`/information/${id}`, {
       method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // GET ALL TRANSCRIPTS
+  async getTranscripts(token: string) {
+    return this.request<Transcript[]>('/transcripts', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // GET SINGLE TRANSCRIPT
+  async getTranscriptById(id: string, token: string) {
+    return this.request<Transcript>(`/transcripts/${id}`, {
+      method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
       },
