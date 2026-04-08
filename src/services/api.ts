@@ -205,6 +205,17 @@ class ApiService {
       },
     });
   }
+
+  // SEARCH TRANSCRIPTS
+  async searchTranscripts(query: string, token: string) {
+    return this.request<Transcript[]>('/transcripts/search', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

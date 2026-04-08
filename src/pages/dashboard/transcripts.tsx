@@ -14,8 +14,11 @@ import {
   IconButton,
   CircularProgress,
   Chip,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 
+import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
@@ -44,13 +47,17 @@ interface Transcript {
 
 const Page: NextPageWithLayout = () => {
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+  const [allTranscripts, setAllTranscripts] = useState<Transcript[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Transcript | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-  // FETCH TRANSCRIPTS
+  // ✅ FETCH ALL TRANSCRIPTS
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
@@ -58,17 +65,47 @@ const Page: NextPageWithLayout = () => {
       setLoading(true);
       const res = await apiService.getTranscripts(token);
 
-      if (res.data) setTranscripts(res.data);
+      if (res.data) {
+        setTranscripts(res.data);
+        setAllTranscripts(res.data); // store original list
+      }
+
       setLoading(false);
     };
 
     fetchData();
   }, [token]);
 
-  // SNAPSHOT TEXT (first 120 chars of conversation)
+  // ✅ DEBOUNCED SEARCH
+  useEffect(() => {
+    if (!token) return;
+
+    const delayDebounce = setTimeout(async () => {
+      // if search empty → show all
+      if (searchQuery.trim() === '') {
+        setTranscripts(allTranscripts);
+        return;
+      }
+
+      setSearchLoading(true);
+
+      const res = await apiService.searchTranscripts(searchQuery, token);
+
+      if (res.data) {
+        setTranscripts(res.data); // only matched transcripts
+      }
+
+      setSearchLoading(false);
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, token, allTranscripts]);
+
+  // SNAPSHOT TEXT
   const getPreview = (conversation: Conversation[] = []) => {
     if (!conversation || conversation.length === 0)
       return 'No transcript available';
+
     const joined = conversation.map((c) => c.text).join(' ');
     return joined.length > 120 ? joined.slice(0, 120) + '...' : joined;
   };
@@ -82,28 +119,41 @@ const Page: NextPageWithLayout = () => {
         p: { xs: 2, sm: 4 },
       }}
     >
+      {/* ✅ SEARCH BAR */}
+      <Box mb={3}>
+        <TextField
+          fullWidth
+          placeholder="Search or describe what you're looking for"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+            endAdornment: searchLoading && <CircularProgress size={18} />,
+          }}
+        />
+      </Box>
+
+      {/* ✅ CONTENT */}
       {loading ? (
         <CircularProgress />
       ) : transcripts.length === 0 ? (
-        <Typography color="text.secondary">No transcripts found.</Typography>
+        <Typography color="text.secondary">
+          No matching transcripts found.
+        </Typography>
       ) : (
         <Grid container spacing={2}>
           {transcripts.map((t) => (
-            <Grid
-              sx={{
-                width: '100%',
-              }}
-              key={t.id}
-            >
+            <Grid key={t.id} sx={{ width: '100%' }}>
               <Card
-                sx={{
-                  cursor: 'pointer',
-                  borderRadius: 3,
-                }}
+                sx={{ cursor: 'pointer', borderRadius: 3 }}
                 onClick={() => setSelected(t)}
               >
                 <CardContent>
-                  {/* SNAPSHOT TEXT */}
+                  {/* PREVIEW */}
                   <Typography
                     variant="body1"
                     sx={{
@@ -139,7 +189,7 @@ const Page: NextPageWithLayout = () => {
         </Grid>
       )}
 
-      {/* MODAL */}
+      {/* ✅ MODAL */}
       <Dialog
         open={!!selected}
         onClose={() => setSelected(null)}
@@ -147,7 +197,6 @@ const Page: NextPageWithLayout = () => {
         maxWidth="md"
       >
         <DialogContent>
-          {/* HEADER */}
           <Box display="flex" justifyContent="space-between" mb={2}>
             <Typography variant="h6">Conversation</Typography>
             <IconButton onClick={() => setSelected(null)}>
@@ -157,7 +206,7 @@ const Page: NextPageWithLayout = () => {
 
           {selected && (
             <>
-              {/* AUDIO PLAYER */}
+              {/* AUDIO */}
               <Box
                 sx={{
                   display: 'flex',
@@ -180,7 +229,7 @@ const Page: NextPageWithLayout = () => {
                 Transcript
               </Typography>
 
-              {selected.Conversation && selected.Conversation.length > 0 ? (
+              {selected.Conversation?.length > 0 ? (
                 <Box>
                   {selected.Conversation.map((c) => (
                     <Box key={c.id} mb={1}>
