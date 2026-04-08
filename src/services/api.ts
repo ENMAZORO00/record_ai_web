@@ -216,6 +216,50 @@ class ApiService {
       body: JSON.stringify({ query }),
     });
   }
+
+  // DELETE TRANSCRIPT
+  async deleteTranscript(id: string, token: string) {
+    return this.request(`/transcripts/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // GET SHARES
+  async getTranscriptShares(id: string, token: string) {
+    return this.request<{ email: string; name: string }[]>(
+      `/transcripts/${id}/shares`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  }
+
+  // SHARE TRANSCRIPT
+  async shareTranscript(id: string, email: string, token: string) {
+    return this.request(`/transcripts/${id}/share`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  // UNSHARE TRANSCRIPT
+  async unshareTranscript(id: string, email: string, token: string) {
+    return this.request(`/transcripts/${id}/share?email=${email}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
 }
 
 export const apiService = new ApiService();

@@ -16,11 +16,13 @@ import {
   Chip,
   TextField,
   InputAdornment,
+  Button,
 } from '@mui/material';
 
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import { NextPageWithLayout } from '../_app';
 import { getDashboardLayout } from '@/src/lib/getDashboardLayout';
@@ -51,137 +53,150 @@ const Page: NextPageWithLayout = () => {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Transcript | null>(null);
 
+  const [shares, setShares] = useState<{ email: string; name: string }[]>([]);
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  const [deleting, setDeleting] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
 
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-  // ✅ FETCH ALL TRANSCRIPTS
+  // FETCH
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
-
       setLoading(true);
       const res = await apiService.getTranscripts(token);
-
       if (res.data) {
         setTranscripts(res.data);
-        setAllTranscripts(res.data); // store original list
+        setAllTranscripts(res.data);
       }
-
       setLoading(false);
     };
-
     fetchData();
   }, [token]);
 
-  // ✅ DEBOUNCED SEARCH
+  // SEARCH
   useEffect(() => {
     if (!token) return;
 
-    const delayDebounce = setTimeout(async () => {
-      // if search empty → show all
-      if (searchQuery.trim() === '') {
+    const delay = setTimeout(async () => {
+      if (!searchQuery.trim()) {
         setTranscripts(allTranscripts);
         return;
       }
 
       setSearchLoading(true);
-
       const res = await apiService.searchTranscripts(searchQuery, token);
-
-      if (res.data) {
-        setTranscripts(res.data); // only matched transcripts
-      }
-
+      if (res.data) setTranscripts(res.data);
       setSearchLoading(false);
     }, 400);
 
-    return () => clearTimeout(delayDebounce);
+    return () => clearTimeout(delay);
   }, [searchQuery, token, allTranscripts]);
 
-  // SNAPSHOT TEXT
-  const getPreview = (conversation: Conversation[] = []) => {
-    if (!conversation || conversation.length === 0)
-      return 'No transcript available';
+  // LOAD SHARES
+  useEffect(() => {
+    const loadShares = async () => {
+      if (!selected || !token || selected.isOwner === false) return;
 
-    const joined = conversation.map((c) => c.text).join(' ');
-    return joined.length > 120 ? joined.slice(0, 120) + '...' : joined;
+      const res = await apiService.getTranscriptShares(selected.id, token);
+      if (res.data) setShares(res.data);
+    };
+
+    loadShares();
+  }, [selected, token]);
+
+  // PREVIEW
+  const getPreview = (conversation: Conversation[] = []) => {
+    if (!conversation?.length) return 'No transcript available';
+    const text = conversation.map((c) => c.text).join(' ');
+    return text.length > 120 ? text.slice(0, 120) + '...' : text;
+  };
+
+  // SHARE
+  const handleShare = async () => {
+    if (!selected || !token || !shareEmail.trim()) return;
+
+    setShareLoading(true);
+    setShareError(null);
+
+    const res = await apiService.shareTranscript(
+      selected.id,
+      shareEmail.trim(),
+      token
+    );
+
+    if (res.error) {
+      setShareError(res.error);
+    } else {
+      setShareEmail('');
+      const updated = await apiService.getTranscriptShares(selected.id, token);
+      if (updated.data) setShares(updated.data);
+    }
+
+    setShareLoading(false);
+  };
+
+  // DELETE
+  const handleDelete = async () => {
+    if (!selected || !token) return;
+
+    const confirm = window.confirm('Delete this transcript?');
+    if (!confirm) return;
+
+    setDeleting(true);
+
+    await apiService.deleteTranscript(selected.id, token);
+
+    setTranscripts((prev) => prev.filter((t) => t.id !== selected.id));
+    setAllTranscripts((prev) => prev.filter((t) => t.id !== selected.id));
+
+    setSelected(null);
+    setDeleting(false);
   };
 
   return (
-    <Box
-      sx={{
-        flex: 1,
-        minHeight: 0,
-        overflow: 'auto',
-        p: { xs: 2, sm: 4 },
-      }}
-    >
-      {/* ✅ SEARCH BAR */}
-      <Box mb={3}>
-        <TextField
-          fullWidth
-          placeholder="Search or describe what you're looking for"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-            endAdornment: searchLoading && <CircularProgress size={18} />,
-          }}
-        />
-      </Box>
+    <Box sx={{ p: 4 }}>
+      {/* SEARCH */}
+      <TextField
+        fullWidth
+        placeholder="Search or describe what you're looking for"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+          endAdornment: searchLoading && <CircularProgress size={18} />,
+        }}
+        sx={{ mb: 3 }}
+      />
 
-      {/* ✅ CONTENT */}
+      {/* LIST */}
       {loading ? (
         <CircularProgress />
-      ) : transcripts.length === 0 ? (
-        <Typography color="text.secondary">
-          No matching transcripts found.
-        </Typography>
       ) : (
         <Grid container spacing={2}>
           {transcripts.map((t) => (
-            <Grid key={t.id} sx={{ width: '100%' }}>
-              <Card
-                sx={{ cursor: 'pointer', borderRadius: 3 }}
-                onClick={() => setSelected(t)}
-              >
+            <Grid
+              key={t.id}
+              sx={{
+                width: '100%',
+              }}
+            >
+              <Card onClick={() => setSelected(t)} sx={{ cursor: 'pointer' }}>
                 <CardContent>
-                  {/* PREVIEW */}
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontFamily: FONTFAMILY.PRIMARY,
-                      mb: 1,
-                    }}
-                  >
+                  <Typography sx={{ fontFamily: FONTFAMILY.PRIMARY }}>
                     {getPreview(t.Conversation)}
                   </Typography>
-
-                  {/* DATE + STATUS */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(t.createdAt).toDateString()}
-                    </Typography>
-
-                    <Chip
-                      label={t.status || 'Completed'}
-                      size="small"
-                      color="success"
-                    />
-                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -189,74 +204,101 @@ const Page: NextPageWithLayout = () => {
         </Grid>
       )}
 
-      {/* ✅ MODAL */}
-      <Dialog
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        fullWidth
-        maxWidth="md"
-      >
+      {/* MODAL */}
+      <Dialog open={!!selected} onClose={() => setSelected(null)} fullWidth>
         <DialogContent>
-          <Box display="flex" justifyContent="space-between" mb={2}>
-            <Typography variant="h6">Conversation</Typography>
-            <IconButton onClick={() => setSelected(null)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-
           {selected && (
             <>
-              {/* AUDIO */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  p: 2,
-                  borderRadius: 2,
-                  bgcolor: '#f5f0ff',
-                  mb: 3,
-                }}
-              >
-                <PlayArrowIcon color="primary" />
-                <audio controls style={{ width: '100%' }}>
-                  <source src={selected.recordingUrl} />
-                </audio>
-              </Box>
-
               {/* TRANSCRIPT */}
-              <Typography variant="subtitle2" mb={1}>
+              <Typography variant="h6" mb={2}>
                 Transcript
               </Typography>
 
-              {selected.Conversation?.length > 0 ? (
-                <Box>
-                  {selected.Conversation.map((c) => (
-                    <Box key={c.id} mb={1}>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontWeight: 'bold' }}
-                      >
-                        {c.speaker}:
-                      </Typography>{' '}
-                      <Typography
-                        variant="body2"
-                        component="span"
-                        sx={{ fontFamily: FONTFAMILY.PRIMARY }}
-                      >
-                        {c.text}
-                      </Typography>
-                    </Box>
-                  ))}
+              {selected.Conversation.map((c) => (
+                <Box key={c.id} mb={2}>
+                  <Typography
+                    sx={{
+                      color: '#7c3aed',
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {c.speaker}
+                  </Typography>
+
+                  <Typography sx={{ fontSize: 15 }}>{c.text}</Typography>
                 </Box>
-              ) : (
-                <Typography
-                  variant="body2"
-                  sx={{ fontFamily: FONTFAMILY.PRIMARY }}
+              ))}
+
+              {/* SHARE BOX */}
+              {selected.isOwner !== false && (
+                <Box
+                  mt={3}
+                  sx={{
+                    background: '#f3e8ff',
+                    borderRadius: 3,
+                    p: 2,
+                    border: '1px solid #e9d5ff',
+                  }}
                 >
-                  Transcript not ready
-                </Typography>
+                  <Typography fontWeight={600}>Share with others</Typography>
+
+                  <Typography variant="body2" color="text.secondary" mb={2}>
+                    Share with up to 3 people. They can view, listen, and chat
+                    with this transcript.
+                  </Typography>
+
+                  <Box display="flex" gap={1}>
+                    <TextField
+                      fullWidth
+                      placeholder="Enter email address"
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                      size="small"
+                      sx={{
+                        background: '#fff',
+                        borderRadius: 2,
+                      }}
+                    />
+
+                    <Button
+                      variant="contained"
+                      onClick={handleShare}
+                      sx={{
+                        background: '#a855f7',
+                        borderRadius: 2,
+                        px: 3,
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+
+                  {shareError && (
+                    <Typography color="error" mt={1}>
+                      {shareError}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
+              {/* DELETE BUTTON */}
+              {selected.isOwner !== false && (
+                <Button
+                  fullWidth
+                  startIcon={<DeleteIcon />}
+                  onClick={handleDelete}
+                  sx={{
+                    mt: 3,
+                    background: '#dc2626',
+                    color: '#fff',
+                    borderRadius: 2,
+                    py: 1.5,
+                    '&:hover': { background: '#b91c1c' },
+                  }}
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </Button>
               )}
             </>
           )}
