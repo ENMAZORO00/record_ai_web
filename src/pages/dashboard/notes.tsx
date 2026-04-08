@@ -18,6 +18,7 @@ import {
   Alert,
   IconButton,
   TextField,
+  Grid,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -129,11 +130,7 @@ function Page() {
       {error && <Alert severity="error">{error}</Alert>}
 
       {/* TOP BAR */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontFamily: FONTFAMILY.PRIMARY }}>
-          Information
-        </Typography>
-
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -147,60 +144,92 @@ function Page() {
       {data.length === 0 ? (
         <Typography>No information added yet</Typography>
       ) : (
-        <Box
+        <Grid
+          container
           sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 2,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 3, // 👈 spacing between cards
           }}
         >
           {data.map((item) => (
-            <Card
+            <Grid
               key={item.id}
-              onClick={() => {
-                setSelected(item);
-                setViewOpen(true);
-              }}
               sx={{
-                cursor: 'pointer',
-                '&:hover': { transform: 'translateY(-3px)', boxShadow: 4 },
+                flex: {
+                  xs: '1 1 100%',
+                  sm: '1 1 calc(50% - 24px)',
+                  md: '1 1 calc(33.33% - 24px)',
+                  lg: '1 1 calc(25% - 24px)',
+                },
+                display: 'flex',
               }}
             >
-              <CardContent>
-                <Typography variant="h6">{item.title || 'Untitled'}</Typography>
+              <Card
+                onClick={() => {
+                  setSelected(item);
+                  setViewOpen(true);
+                }}
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  transition: '0.3s',
+                  '&:hover': {
+                    transform: 'translateY(-6px)',
+                    boxShadow: 6,
+                  },
+                }}
+              >
+                <CardContent>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 1,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.title || 'Untitled'}
+                  </Typography>
 
-                {/* GLIMPSE */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 1,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {item.text}
-                </Typography>
-              </CardContent>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {item.text}
+                  </Typography>
+                </CardContent>
 
-              <CardActions>
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(item.id);
-                  }}
-                >
-                  {deleting === item.id ? (
-                    <CircularProgress size={18} />
-                  ) : (
-                    <DeleteIcon color="error" />
-                  )}
-                </IconButton>
-              </CardActions>
-            </Card>
+                <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.id);
+                    }}
+                  >
+                    {deleting === item.id ? (
+                      <CircularProgress size={18} />
+                    ) : (
+                      <DeleteIcon color="error" />
+                    )}
+                  </IconButton>
+                </CardActions>
+              </Card>
+            </Grid>
           ))}
-        </Box>
+        </Grid>
       )}
 
       {/* VIEW MODAL */}
