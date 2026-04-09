@@ -260,6 +260,32 @@ class ApiService {
       },
     });
   }
+
+  // UPLOAD RECORDING
+  async uploadRecording(file: Blob, token?: string) {
+    const formData = new FormData();
+    formData.append('recording', file, 'recording.webm');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/transcripts/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Upload failed' };
+      }
+
+      return { data };
+    } catch {
+      return { error: 'Network error' };
+    }
+  }
 }
 
 export const apiService = new ApiService();
