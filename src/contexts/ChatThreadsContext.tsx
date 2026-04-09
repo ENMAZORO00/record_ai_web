@@ -135,17 +135,19 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
       return;
     }
     // Map backend chats to ChatThread[]
-    const chatList = (res.data?.chats || []).map((c: {
-      id: string;
-      title: string;
-      updatedAt: string;
-      messages?: ChatMessage[];
-    }) => ({
-      id: c.id,
-      title: c.title,
-      updatedAt: new Date(c.updatedAt).getTime(),
-      messages: [], // messages fetched on demand
-    }));
+    const chatList = (res.data?.chats || []).map(
+      (c: {
+        id: string;
+        title: string;
+        updatedAt: string;
+        messages?: ChatMessage[];
+      }) => ({
+        id: c.id,
+        title: c.title,
+        updatedAt: new Date(c.updatedAt).getTime(),
+        messages: [], // messages fetched on demand
+      })
+    );
     setThreads(chatList);
     setLoading(false);
   }, [token]);
@@ -174,12 +176,20 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
             id: chat.id,
             title: chat.title,
             updatedAt: new Date(chat.updatedAt).getTime(),
-            messages: (chat.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
-              id: m.id,
-              role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
-              content: m.content,
-              createdAt: new Date(m.createdAt).getTime(),
-            })),
+            messages: (chat.messages || []).map(
+              (m: {
+                id: string;
+                role: string;
+                content: string;
+                createdAt: string;
+              }) => ({
+                id: m.id,
+                role:
+                  m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
+                content: m.content,
+                createdAt: new Date(m.createdAt).getTime(),
+              })
+            ),
           },
           ...others,
         ];
@@ -216,12 +226,20 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
           id: chat.id,
           title: chat.title,
           updatedAt: new Date(chat.updatedAt).getTime(),
-          messages: (chat.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
-            id: m.id,
-            role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
-            content: m.content,
-            createdAt: new Date(m.createdAt).getTime(),
-          })),
+          messages: (chat.messages || []).map(
+            (m: {
+              id: string;
+              role: string;
+              content: string;
+              createdAt: string;
+            }) => ({
+              id: m.id,
+              role:
+                m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
+              content: m.content,
+              createdAt: new Date(m.createdAt).getTime(),
+            })
+          ),
         },
         ...prev,
       ]);
