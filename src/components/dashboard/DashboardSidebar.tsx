@@ -39,8 +39,20 @@ type DashboardSidebarProps = {
 export default function DashboardSidebar({
   collapsed,
   onToggleCollapsed,
-  userDisplayName = 'SHUBHAM PAL',
+  userDisplayName,
 }: DashboardSidebarProps) {
+  // Get user name from localStorage if not provided
+  let displayName = userDisplayName;
+  if (!displayName && typeof window !== 'undefined') {
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        displayName = user.name || '';
+      }
+    } catch {}
+  }
+
   const router = useRouter();
   const pathname = router.pathname;
   const chatId =
@@ -256,7 +268,7 @@ export default function DashboardSidebar({
             >
               Chat history
             </Typography>
-            <TextField
+            {/* <TextField
               fullWidth
               size="small"
               placeholder="Search chat history"
@@ -280,7 +292,7 @@ export default function DashboardSidebar({
                 },
               }}
               sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            />
+            /> */}
           </Box>
         )}
 
@@ -450,7 +462,7 @@ export default function DashboardSidebar({
                 color: 'text.disabled',
               }}
             >
-              {userDisplayName}
+              {displayName || ''}
             </Typography>
           </>
         )}

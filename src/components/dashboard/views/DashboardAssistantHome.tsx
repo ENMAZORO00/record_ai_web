@@ -24,8 +24,6 @@ import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
 import { FONTFAMILY } from '@/src/lib/constants/font';
 import { apiService } from '@/src/services/api';
 
-const USER_FIRST_NAME = 'Shubham';
-
 export default function DashboardAssistantHome() {
   const router = useRouter();
   const {
@@ -40,6 +38,18 @@ export default function DashboardAssistantHome() {
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Get user name from localStorage
+  let userName = '';
+  if (typeof window !== 'undefined') {
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        userName = user.name || '';
+      }
+    } catch {}
+  }
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -185,7 +195,7 @@ export default function DashboardAssistantHome() {
             variant="h4"
             sx={{ fontFamily: FONTFAMILY.PRIMARY, fontWeight: 700 }}
           >
-            Hi, {USER_FIRST_NAME}!
+            Hi, {userName || 'there'}!
           </Typography>
 
           <Typography color="#90A4AE" mt={1} mb={5} fontSize={28}>
