@@ -24,6 +24,9 @@ import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
 import { FONTFAMILY } from '@/src/lib/constants/font';
 import { apiService } from '@/src/services/api';
 
+import { useContext } from 'react';
+import { DashboardUserContext } from '@/src/components/layouts/dashboardLayout';
+
 export default function DashboardAssistantHome() {
   const router = useRouter();
   const {
@@ -39,17 +42,9 @@ export default function DashboardAssistantHome() {
   const [seconds, setSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Get user name from localStorage
-  let userName = '';
-  if (typeof window !== 'undefined') {
-    try {
-      const userStr = localStorage.getItem('authUser');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        userName = user.name || '';
-      }
-    } catch {}
-  }
+  // Get user name from context
+  const user = useContext(DashboardUserContext);
+  const userName = user?.name || '';
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);

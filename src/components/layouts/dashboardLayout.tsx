@@ -2,12 +2,17 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import { Box } from '@mui/material';
 
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useState, useEffect } from 'react';
 
 import DashboardSidebar from '@/src/components/dashboard/DashboardSidebar';
 import DashboardTopBar from '@/src/components/dashboard/DashboardTopBar';
 import { ChatThreadsProvider } from '@/src/contexts/ChatThreadsContext';
+import { apiService } from '@/src/services/api';
 
+// User context for dashboard
+import React from 'react';
+type DashboardUser = { id: string; name: string; email: string } | null;
+export const DashboardUserContext = React.createContext<DashboardUser>(null);
 const dashboardTheme = createTheme({
   palette: {
     primary: {
@@ -35,55 +40,91 @@ export default function DashboardLayout({
   topBarTitle,
 }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState<DashboardUser>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
   }, []);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('authToken')
+          : null;
+      if (!token) {
+        setUser(null);
+        setLoadingUser(false);
+        return;
+      }
+      const res = await apiService.request<{
+        user: { id: string; name: string; email: string };
+      }>('/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data && res.data.user) {
+        setUser(res.data.user);
+      } else {
+        setUser(null);
+      }
+      setLoadingUser(false);
+    };
+    fetchUser();
+  }, []);
+
+  if (loadingUser) {
+    return null; // or a loading spinner
+  }
+
   return (
     <ThemeProvider theme={dashboardTheme}>
-      <ChatThreadsProvider>
-        <Box
-          sx={{
-            display: 'flex',
-            height: '100vh',
-            maxHeight: '100dvh',
-            overflow: 'hidden',
-            bgcolor: 'background.default',
-          }}
-        >
-          <DashboardSidebar
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={toggleSidebar}
-          />
+      <DashboardUserContext.Provider value={user}>
+        <ChatThreadsProvider>
           <Box
             sx={{
-              flex: 1,
               display: 'flex',
-              flexDirection: 'column',
-              minWidth: 0,
-              minHeight: 0,
-              height: '100%',
+              height: '100vh',
+              maxHeight: '100dvh',
               overflow: 'hidden',
-              bgcolor: 'background.paper',
+              bgcolor: 'background.default',
             }}
           >
-            <DashboardTopBar title={topBarTitle} />
+            <DashboardSidebar
+              collapsed={sidebarCollapsed}
+              onToggleCollapsed={toggleSidebar}
+              userDisplayName={user?.name}
+            />
             <Box
-              component="main"
               sx={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
+                minWidth: 0,
                 minHeight: 0,
-                position: 'relative',
+                height: '100%',
+                overflow: 'hidden',
+                bgcolor: 'background.paper',
               }}
             >
-              {children}
+              <DashboardTopBar title={topBarTitle} />
+              <Box
+                component="main"
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 0,
+                  position: 'relative',
+                }}
+              >
+                {children}
+              </Box>
             </Box>
           </Box>
-        </Box>
-      </ChatThreadsProvider>
+        </ChatThreadsProvider>
+      </DashboardUserContext.Provider>
     </ThemeProvider>
   );
 }

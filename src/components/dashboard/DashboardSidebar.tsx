@@ -36,22 +36,17 @@ type DashboardSidebarProps = {
   userDisplayName?: string;
 };
 
+import { useContext } from 'react';
+import { DashboardUserContext } from '@/src/components/layouts/dashboardLayout';
+
 export default function DashboardSidebar({
   collapsed,
   onToggleCollapsed,
   userDisplayName,
 }: DashboardSidebarProps) {
-  // Get user name from localStorage if not provided
-  let displayName = userDisplayName;
-  if (!displayName && typeof window !== 'undefined') {
-    try {
-      const userStr = localStorage.getItem('authUser');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        displayName = user.name || '';
-      }
-    } catch {}
-  }
+  // Use userDisplayName prop or fallback to context
+  const user = useContext(DashboardUserContext);
+  const displayName = userDisplayName || user?.name || '';
 
   const router = useRouter();
   const pathname = router.pathname;
