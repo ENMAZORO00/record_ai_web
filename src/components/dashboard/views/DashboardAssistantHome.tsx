@@ -161,25 +161,6 @@ export default function DashboardAssistantHome() {
           }}
         />
       </Box>
-
-      <Typography
-        aria-hidden
-        sx={{
-          position: 'absolute',
-          right: { xs: -16, sm: 24 },
-          bottom: { xs: -24, sm: 16 },
-          fontFamily: FONTFAMILY.PRIMARY,
-          fontWeight: 700,
-          fontSize: { xs: '8rem', sm: '12rem' },
-          lineHeight: 1,
-          color: 'grey.200',
-          userSelect: 'none',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      >
-        AI
-      </Typography>
     </Box>
   );
 }
