@@ -7,6 +7,7 @@ import {
   Paper,
   TextField,
   Typography,
+  CircularProgress,
 } from '@mui/material';
 
 import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
@@ -37,14 +38,19 @@ type ChatgptConversationViewProps = {
 export default function ChatgptConversationView({
   chatId,
 }: ChatgptConversationViewProps) {
-  const {
-    getThread,
-    appendUserMessage,
-    appendAssistantMessage,
-  } = useChatThreads();
+  const { getThread, fetchThreadById, sendMessageToThread, loading, error } =
+    useChatThreads();
   const thread = getThread(chatId);
   const [draft, setDraft] = useState('');
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Fetch thread messages on mount or chatId change
+  useEffect(() => {
+    if (!chatId) return;
+    fetchThreadById(chatId).then(() => setInitialLoaded(true));
+    // eslint-disable-next-line
+  }, [chatId]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,42 +60,15 @@ export default function ChatgptConversationView({
     scrollToBottom();
   }, [thread?.messages.length, scrollToBottom]);
 
-  const lastMessage =
-    thread && thread.messages.length > 0
-      ? thread.messages[thread.messages.length - 1]
-      : undefined;
-  const lastMessageId = lastMessage?.id;
-  const lastRole = lastMessage?.role;
-
-  useEffect(() => {
-    const th = getThread(chatId);
-    if (!th || lastRole !== 'user' || !lastMessageId) return;
-    const idx = th.messages.findIndex((m) => m.id === lastMessageId);
-    const next = th.messages[idx + 1];
-    if (next?.role === 'assistant') return;
-
-    const timer = window.setTimeout(() => {
-      appendAssistantMessage(chatId, DEMO_ASSISTANT_REPLY);
-    }, 550);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    chatId,
-    lastMessageId,
-    lastRole,
-    getThread,
-    appendAssistantMessage,
-  ]);
-
-  const send = useCallback(() => {
+  const send = useCallback(async () => {
     if (!thread) return;
     const text = draft.trim();
     if (!text) return;
-    appendUserMessage(thread.id, text);
+    await sendMessageToThread(thread.id, text);
     setDraft('');
-  }, [thread, draft, appendUserMessage]);
+  }, [thread, draft, sendMessageToThread]);
 
-  if (!thread) {
+  if (!thread && !loading && initialLoaded) {
     return (
       <Box sx={{ p: 4, overflow: 'auto' }}>
         <Typography color="text.secondary" sx={{ fontSize: '1.0625rem' }}>
@@ -99,7 +78,23 @@ export default function ChatgptConversationView({
     );
   }
 
-  const empty = thread.messages.length === 0;
+  if (loading && !thread) {
+    return (
+      <Box
+        sx={{
+          p: 4,
+          overflow: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  const empty = !thread || thread.messages.length === 0;
 
   return (
     <Box
@@ -273,7 +268,7 @@ export default function ChatgptConversationView({
                       </Paper>
                     </Box>
                   </Box>
-                ),
+                )
               )}
             </Box>
             <Box
@@ -350,9 +345,7 @@ export default function ChatgptConversationView({
                       height: 36,
                       borderRadius: '50%',
                       bgcolor: draft.trim() ? 'primary.main' : '#e3e3e3',
-                      color: draft.trim()
-                        ? 'primary.contrastText'
-                        : '#9e9e9e',
+                      color: draft.trim() ? 'primary.contrastText' : '#9e9e9e',
                       '&:hover': {
                         bgcolor: draft.trim() ? 'primary.dark' : '#d6d6d6',
                       },
@@ -386,19 +379,21 @@ export default function ChatgptConversationView({
               },
             }}
           />
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              textAlign: 'center',
-              mt: 1.25,
-              color: 'text.disabled',
-              fontFamily: FONTFAMILY.PRIMARY,
-              fontSize: '0.7rem',
-            }}
-          >
-            Demo UI — responses are placeholders.
-          </Typography>
+          {error && (
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                textAlign: 'center',
+                mt: 1.25,
+                color: 'error.main',
+                fontFamily: FONTFAMILY.PRIMARY,
+                fontSize: '0.7rem',
+              }}
+            >
+              {error}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>

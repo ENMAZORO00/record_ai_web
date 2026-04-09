@@ -17,6 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { DASHBOARD_NAV_ITEMS } from '@/src/config/dashboardNav';
 import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
@@ -49,12 +50,17 @@ export default function DashboardSidebar({
     filteredThreads,
     historySearch,
     setHistorySearch,
-    createEmptyThread,
+    createThreadWithUserMessage,
+    deleteThread,
+    loading: chatLoading,
+    error: chatError,
   } = useChatThreads();
 
-  const handleNewChat = () => {
-    const id = createEmptyThread();
-    router.push(`/dashboard/chat/${id}`);
+  const handleNewChat = async () => {
+    const id = await createThreadWithUserMessage('');
+    if (id) {
+      router.push(`/dashboard/chat/${id}`);
+    }
   };
 
   const handleLogout = async () => {
@@ -225,51 +231,7 @@ export default function DashboardSidebar({
           })}
         </List>
 
-        <Box sx={{ px: collapsed ? 0.5 : 1.5, pb: 1, flexShrink: 0 }}>
-          {collapsed ? (
-            <Tooltip title="New chat" placement="right">
-              <IconButton
-                onClick={handleNewChat}
-                aria-label="New chat"
-                sx={{
-                  width: '100%',
-                  borderRadius: 2,
-                  color: 'text.primary',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                  '&:hover': { bgcolor: 'action.hover' },
-                }}
-              >
-                <EditOutlinedIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<EditOutlinedIcon />}
-              onClick={handleNewChat}
-              sx={{
-                justifyContent: 'flex-start',
-                py: 1.1,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontFamily: FONTFAMILY.PRIMARY,
-                fontWeight: 600,
-                borderColor: 'divider',
-                color: 'text.primary',
-                bgcolor: 'background.paper',
-                '&:hover': {
-                  borderColor: 'text.secondary',
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
-              New chat
-            </Button>
-          )}
-        </Box>
+        {/* Removed New Chat button */}
 
         {!collapsed && (
           <Box
@@ -332,12 +294,37 @@ export default function DashboardSidebar({
               py: 0.5,
             }}
           >
+            {chatLoading && (
+              <ListItem>
+                <ListItemText
+                  primary={
+                    <span style={{ color: '#888' }}>Loading chats…</span>
+                  }
+                />
+              </ListItem>
+            )}
+            {!chatLoading && filteredThreads.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary={
+                    <span style={{ color: '#888' }}>No chats found</span>
+                  }
+                />
+              </ListItem>
+            )}
             {filteredThreads.map((t) => {
               const href = `/dashboard/chat/${t.id}`;
               const isChatActive = chatId === t.id;
-
+              const lastMsg =
+                t.messages && t.messages.length > 0
+                  ? t.messages[t.messages.length - 1]
+                  : null;
               return (
-                <ListItem key={t.id} disablePadding sx={{ display: 'block' }}>
+                <ListItem
+                  key={t.id}
+                  disablePadding
+                  sx={{ display: 'flex', alignItems: 'center' }}
+                >
                   <ListItemButton
                     component={Link}
                     href={href}
@@ -347,6 +334,7 @@ export default function DashboardSidebar({
                       py: 1,
                       px: 1.5,
                       alignItems: 'flex-start',
+                      flex: 1,
                       '&.Mui-selected': {
                         bgcolor: 'action.selected',
                         '&:hover': { bgcolor: 'action.selected' },
@@ -365,9 +353,9 @@ export default function DashboardSidebar({
                         },
                       }}
                       secondary={
-                        t.messages.length > 0
-                          ? `${t.messages.length} message${t.messages.length === 1 ? '' : 's'}`
-                          : 'Empty'
+                        lastMsg
+                          ? `${lastMsg.role === 'assistant' ? 'AI: ' : 'You: '}${lastMsg.content.slice(0, 40)}${lastMsg.content.length > 40 ? '…' : ''}`
+                          : 'No messages'
                       }
                       secondaryTypographyProps={{
                         noWrap: true,
@@ -379,6 +367,25 @@ export default function DashboardSidebar({
                       }}
                     />
                   </ListItemButton>
+                  <Tooltip title="Delete chat">
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      aria-label="delete"
+                      sx={{ ml: 0.5, mr: 1 }}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm('Delete this chat?')) {
+                          await deleteThread(t.id);
+                          // If deleted chat is open, redirect to dashboard
+                          if (chatId === t.id) router.push('/dashboard');
+                        }
+                      }}
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </ListItem>
               );
             })}

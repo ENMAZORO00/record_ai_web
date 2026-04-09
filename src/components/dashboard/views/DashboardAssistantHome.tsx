@@ -28,7 +28,11 @@ const USER_FIRST_NAME = 'Shubham';
 
 export default function DashboardAssistantHome() {
   const router = useRouter();
-  const { createThreadWithUserMessage } = useChatThreads();
+  const {
+    createThreadWithUserMessage,
+    loading: chatLoading,
+    error: chatError,
+  } = useChatThreads();
 
   const [message, setMessage] = useState('');
 
@@ -42,12 +46,12 @@ export default function DashboardAssistantHome() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // ---------------- SEND TEXT ----------------
-  const send = useCallback(() => {
+  const send = useCallback(async () => {
     const text = message.trim();
     if (!text) return;
-    const id = createThreadWithUserMessage(text);
+    const id = await createThreadWithUserMessage(text);
     setMessage('');
-    router.push(`/dashboard/chat/${id}`);
+    if (id) router.push(`/dashboard/chat/${id}`);
   }, [message, createThreadWithUserMessage, router]);
 
   // ---------------- TIMER ----------------
@@ -222,20 +226,27 @@ export default function DashboardAssistantHome() {
             }}
             sx={{ mt: 4 }}
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <FormatListBulletedIcon />
-                </InputAdornment>
-              ),
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={send} disabled={!message.trim()}>
-                    <ArrowForwardIosIcon fontSize="small" />
+                  <IconButton
+                    onClick={send}
+                    disabled={!message.trim() || chatLoading}
+                  >
+                    {chatLoading ? (
+                      <CircularProgress size={18} />
+                    ) : (
+                      <ArrowForwardIosIcon fontSize="small" />
+                    )}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
           />
+          {chatError && (
+            <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+              {chatError}
+            </Typography>
+          )}
         </Box>
       ) : (
         // ---------------- RECORDING SCREEN ----------------

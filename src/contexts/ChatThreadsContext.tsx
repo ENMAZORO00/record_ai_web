@@ -8,6 +8,8 @@ import {
 } from 'react';
 
 import type { ChatMessage, ChatThread } from '@/src/types/chat';
+import { useEffect } from 'react';
+import { apiService } from '@/src/services/api';
 
 function newId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -94,17 +96,184 @@ type ChatThreadsContextValue = {
   historySearch: string;
   setHistorySearch: (q: string) => void;
   getThread: (id: string) => ChatThread | undefined;
-  createEmptyThread: () => string;
-  createThreadWithUserMessage: (content: string) => string;
-  appendUserMessage: (threadId: string, content: string) => void;
-  appendAssistantMessage: (threadId: string, content: string) => void;
+  fetchThreads: () => Promise<void>;
+  fetchThreadById: (id: string) => Promise<void>;
+  createThreadWithUserMessage: (content: string) => Promise<string | undefined>;
+  sendMessageToThread: (threadId: string, content: string) => Promise<void>;
+  deleteThread: (threadId: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
 };
 
 const ChatThreadsContext = createContext<ChatThreadsContextValue | null>(null);
 
 export function ChatThreadsProvider({ children }: { children: ReactNode }) {
-  const [threads, setThreads] = useState<ChatThread[]>(seedThreads);
+  const [threads, setThreads] = useState<ChatThread[]>([]);
   const [historySearch, setHistorySearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  // TODO: Replace with real token from auth context
+  useEffect(() => {
+    // Avoid direct setState in effect body
+    const tokenFromStorage = window.localStorage.getItem('authToken');
+    if (tokenFromStorage !== token) {
+      setToken(tokenFromStorage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchThreads = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    const res = await apiService.getChats(token);
+    if (res.error) {
+      setError(res.error);
+      setLoading(false);
+      return;
+    }
+    // Map backend chats to ChatThread[]
+    const chatList = (res.data?.chats || []).map((c: {
+      id: string;
+      title: string;
+      updatedAt: string;
+      messages?: ChatMessage[];
+    }) => ({
+      id: c.id,
+      title: c.title,
+      updatedAt: new Date(c.updatedAt).getTime(),
+      messages: [], // messages fetched on demand
+    }));
+    setThreads(chatList);
+    setLoading(false);
+  }, [token]);
+
+  const fetchThreadById = useCallback(
+    async (id: string) => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      const res = await apiService.getChatById(id, token);
+      if (res.error) {
+        setError(res.error);
+        setLoading(false);
+        return;
+      }
+      const chat = res.data?.chat;
+      if (!chat) {
+        setError('Chat not found');
+        setLoading(false);
+        return;
+      }
+      setThreads((prev) => {
+        const others = prev.filter((t) => t.id !== chat.id);
+        return [
+          {
+            id: chat.id,
+            title: chat.title,
+            updatedAt: new Date(chat.updatedAt).getTime(),
+            messages: (chat.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+              id: m.id,
+              role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
+              content: m.content,
+              createdAt: new Date(m.createdAt).getTime(),
+            })),
+          },
+          ...others,
+        ];
+      });
+      setLoading(false);
+    },
+    [token]
+  );
+
+  const getThread = useCallback(
+    (id: string) => threads.find((t) => t.id === id),
+    [threads]
+  );
+
+  const createThreadWithUserMessage = useCallback(
+    async (content: string) => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      const res = await apiService.createChat({ content }, token);
+      if (res.error) {
+        setError(res.error);
+        setLoading(false);
+        return undefined;
+      }
+      const chat = res.data?.chat;
+      if (!chat) {
+        setError('Failed to create chat');
+        setLoading(false);
+        return undefined;
+      }
+      setThreads((prev) => [
+        {
+          id: chat.id,
+          title: chat.title,
+          updatedAt: new Date(chat.updatedAt).getTime(),
+          messages: (chat.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+            id: m.id,
+            role: m.role === 'user' || m.role === 'assistant' ? m.role : 'user',
+            content: m.content,
+            createdAt: new Date(m.createdAt).getTime(),
+          })),
+        },
+        ...prev,
+      ]);
+      setLoading(false);
+      return chat.id;
+    },
+    [token]
+  );
+
+  const sendMessageToThread = useCallback(
+    async (threadId: string, content: string) => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      const res = await apiService.sendMessageToChat(threadId, content, token);
+      if (res.error) {
+        setError(res.error);
+        setLoading(false);
+        return;
+      }
+      // Fetch updated thread
+      await fetchThreadById(threadId);
+      setLoading(false);
+    },
+    [token, fetchThreadById]
+  );
+
+  const deleteThread = useCallback(
+    async (threadId: string) => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      const res = await apiService.deleteChat(threadId, token);
+      if (res.error) {
+        setError(res.error);
+        setLoading(false);
+        return;
+      }
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      setLoading(false);
+    },
+    [token]
+  );
+
+  useEffect(() => {
+    // Avoid calling setState directly in effect
+    if (token) {
+      (async () => {
+        await fetchThreads();
+      })();
+    }
+  }, [token, fetchThreads]);
 
   const filteredThreads = useMemo(() => {
     const q = historySearch.trim().toLowerCase();
@@ -113,90 +282,6 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
     return sorted.filter((t) => t.title.toLowerCase().includes(q));
   }, [threads, historySearch]);
 
-  const getThread = useCallback(
-    (id: string) => threads.find((t) => t.id === id),
-    [threads],
-  );
-
-  const createEmptyThread = useCallback(() => {
-    const id = newId();
-    const thread: ChatThread = {
-      id,
-      title: 'New chat',
-      updatedAt: Date.now(),
-      messages: [],
-    };
-    setThreads((prev) => [thread, ...prev]);
-    return id;
-  }, []);
-
-  const createThreadWithUserMessage = useCallback((content: string) => {
-    const id = newId();
-    const trimmed = content.trim();
-    const userMsg: ChatMessage = {
-      id: newId(),
-      role: 'user',
-      content: trimmed,
-      createdAt: Date.now(),
-    };
-    const thread: ChatThread = {
-      id,
-      title: truncateTitle(trimmed),
-      updatedAt: Date.now(),
-      messages: [userMsg],
-    };
-    setThreads((prev) => [thread, ...prev]);
-    return id;
-  }, []);
-
-  const appendUserMessage = useCallback((threadId: string, content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    const userMsg: ChatMessage = {
-      id: newId(),
-      role: 'user',
-      content: trimmed,
-      createdAt: Date.now(),
-    };
-    setThreads((prev) =>
-      prev.map((t) => {
-        if (t.id !== threadId) return t;
-        const nextMessages = [...t.messages, userMsg];
-        const title =
-          t.messages.length === 0 ? truncateTitle(trimmed) : t.title;
-        return {
-          ...t,
-          title,
-          messages: nextMessages,
-          updatedAt: Date.now(),
-        };
-      }),
-    );
-  }, []);
-
-  const appendAssistantMessage = useCallback(
-    (threadId: string, content: string) => {
-      const msg: ChatMessage = {
-        id: newId(),
-        role: 'assistant',
-        content,
-        createdAt: Date.now(),
-      };
-      setThreads((prev) =>
-        prev.map((t) =>
-          t.id === threadId
-            ? {
-                ...t,
-                messages: [...t.messages, msg],
-                updatedAt: Date.now(),
-              }
-            : t,
-        ),
-      );
-    },
-    [],
-  );
-
   const value = useMemo(
     () => ({
       threads,
@@ -204,21 +289,27 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
       historySearch,
       setHistorySearch,
       getThread,
-      createEmptyThread,
+      fetchThreads,
+      fetchThreadById,
       createThreadWithUserMessage,
-      appendUserMessage,
-      appendAssistantMessage,
+      sendMessageToThread,
+      deleteThread,
+      loading,
+      error,
     }),
     [
       threads,
       filteredThreads,
       historySearch,
       getThread,
-      createEmptyThread,
+      fetchThreads,
+      fetchThreadById,
       createThreadWithUserMessage,
-      appendUserMessage,
-      appendAssistantMessage,
-    ],
+      sendMessageToThread,
+      deleteThread,
+      loading,
+      error,
+    ]
   );
 
   return (

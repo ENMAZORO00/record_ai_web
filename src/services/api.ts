@@ -286,6 +286,92 @@ class ApiService {
       return { error: 'Network error' };
     }
   }
+
+  // CHAT APIS
+  // GET /chats (list, optional search)
+  async getChats(token: string, search?: string) {
+    const url = search
+      ? `/chats?search=${encodeURIComponent(search)}`
+      : '/chats';
+    return this.request<{
+      chats: { id: string; title: string; updatedAt: string }[];
+    }>(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // GET /chats/:id (single chat with messages)
+  async getChatById(id: string, token: string) {
+    return this.request<{
+      chat: {
+        id: string;
+        title: string;
+        messages: {
+          id: string;
+          role: string;
+          text: string;
+          content: string;
+          createdAt: string;
+        }[];
+        updatedAt: string;
+      };
+    }>(`/chats/${id}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  // POST /chats (create new chat)
+  async createChat(data: { title?: string; content: string }, token: string) {
+    return this.request<{
+      chat: {
+        id: string;
+        title: string;
+        messages: {
+          id: string;
+          role: string;
+          text: string;
+          content: string;
+          createdAt: string;
+        }[];
+        updatedAt: string;
+      };
+    }>('/chats', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  // POST /chats/:id/messages (add user message, get assistant reply)
+  async sendMessageToChat(chatId: string, content: string, token: string) {
+    return this.request<{ content: string }>(`/chats/${chatId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  // DELETE /chats/:id
+  async deleteChat(id: string, token: string) {
+    return this.request<{ success: boolean }>(`/chats/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
 }
 
 export const apiService = new ApiService();
