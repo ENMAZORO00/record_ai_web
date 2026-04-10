@@ -1,19 +1,16 @@
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft';
 import KeyboardDoubleArrowRightIcon from '@mui/icons-material/KeyboardDoubleArrowRight';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
-import SearchIcon from '@mui/icons-material/Search';
+
 import {
   Box,
   Button,
   IconButton,
-  InputAdornment,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
