@@ -55,6 +55,23 @@ export interface Transcript {
 }
 
 class ApiService {
+  // GET COMPANY MEMBERS
+  async getCompanyMembers(token: string) {
+    return this.request<{
+      members: Array<{
+        id: string;
+        name: string;
+        email: string;
+        companyRole: string;
+        isCurrentUser: boolean;
+      }>;
+    }>('/companies/me/members', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
   public async request<T = unknown>(
     endpoint: string,
     options: RequestInit = {}
