@@ -152,7 +152,7 @@ export default function TeamPage() {
     formData.append('meetingId', meetingId);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/transcripts/upload`,
+        `${process.env.NEXT_PUBLIC_API_URL}/transcripts/upload`,
         {
           method: 'POST',
           headers: {

@@ -101,7 +101,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     googleAuthService.initialize();

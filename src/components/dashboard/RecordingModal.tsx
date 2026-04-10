@@ -71,8 +71,9 @@ const RecordingModal: React.FC<RecordingModalProps> = ({
       }
       setMediaRecorder(null);
     }
+    // Only depend on 'open' to avoid infinite loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mediaRecorder, startRecording]);
+  }, [open]);
 
   useEffect(() => {
     if (recording && !paused) {
