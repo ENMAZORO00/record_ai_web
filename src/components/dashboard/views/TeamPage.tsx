@@ -7,7 +7,6 @@ import {
   Paper,
   Stack,
   useTheme,
-  IconButton,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { apiService } from '@/src/services/api';
