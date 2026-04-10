@@ -117,21 +117,6 @@ export default function TeamPage() {
         Select colleagues to record with, then start recording.
       </Typography>
 
-      {/* <Paper
-        elevation={0}
-        sx={{
-          bgcolor: '#f8f9fa',
-          color: 'text.primary',
-          borderRadius: 3,
-          px: { xs: 1, sm: 4 },
-          py: { xs: 2, sm: 2.5 },
-          mb: 3,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #e0e0e0',
-        }}
-      > */}
       <Button
         variant="outlined"
         color="inherit"
@@ -157,7 +142,6 @@ export default function TeamPage() {
       >
         Start solo recording
       </Button>
-      {/* </Paper> */}
 
       <Box>
         {loading ? (
