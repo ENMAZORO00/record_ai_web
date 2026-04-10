@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import { apiService } from '@/src/services/api';
 import MicIcon from '@mui/icons-material/Mic';
+import RecordingModal from '../RecordingModal';
 
 type Member = {
   id: string;
@@ -25,7 +26,12 @@ export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [recordingModalOpen, setRecordingModalOpen] = useState(false);
+  const [meetingId, setMeetingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [transcriptStatus, setTranscriptStatus] = useState<string | null>(null);
+  const [transcriptId, setTranscriptId] = useState<string | null>(null);
   const theme = useTheme();
 
   useEffect(() => {
@@ -95,20 +101,80 @@ export default function TeamPage() {
       origin: 'extHost1',
     },
   ];
+
+  // Multi-select: toggle member
   const handleSelectMember = (id: string) => {
-    setSelectedMemberId(id === selectedMemberId ? null : id);
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((mid) => mid !== id) : [...prev, id]
+    );
   };
 
-  const handleStartRecording = () => {
-    // TODO: Implement actual recording logic
-    if (selectedMemberId) {
-      alert(
-        'Start recording with member: ' +
-          members.find((m) => m.id === selectedMemberId)?.name
-      );
-    } else {
-      alert('Start solo recording');
+  // Start recording: create meeting, then open modal
+  const handleStartRecording = async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Not authenticated');
+      return;
     }
+    setError(null);
+    setTranscriptStatus(null);
+    setTranscriptId(null);
+    // Exclude self from participants
+    const self = members.find((m) => m.isCurrentUser);
+    const participantUserIds = selectedMemberIds.filter(
+      (id) => id !== self?.id
+    );
+    try {
+      const res = await apiService.request<{ meetingId: string }>('/meetings', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ participantUserIds }),
+      });
+      if (res.error || !res.data?.meetingId) {
+        setError(res.error || 'Failed to create meeting');
+        return;
+      }
+      setMeetingId(res.data.meetingId);
+      setRecordingModalOpen(true);
+    } catch (err) {
+      setError('Failed to create meeting');
+    }
+  };
+
+  // Save audio: upload to /transcripts/upload with meetingId
+  const handleSaveRecording = async (audioBlob: Blob) => {
+    if (!meetingId) return;
+    setUploading(true);
+    setTranscriptStatus(null);
+    setTranscriptId(null);
+    const token = localStorage.getItem('authToken');
+    const formData = new FormData();
+    formData.append('recording', audioBlob, 'recording.webm');
+    formData.append('meetingId', meetingId);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/transcripts/upload`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setTranscriptStatus(data.error || 'Upload failed');
+      } else {
+        setTranscriptStatus(data.status || 'processing');
+        setTranscriptId(data.id);
+      }
+    } catch (err) {
+      setTranscriptStatus('Network error');
+    }
+    setUploading(false);
+    setRecordingModalOpen(false);
+    // Optionally: refresh team/meeting list here
   };
 
   return (
@@ -139,9 +205,23 @@ export default function TeamPage() {
           },
         }}
         onClick={handleStartRecording}
+        disabled={loading || members.length === 0}
       >
-        Start solo recording
+        {selectedMemberIds.length > 0
+          ? 'Start team meeting recording'
+          : 'Start solo recording'}
       </Button>
+
+      {transcriptStatus && (
+        <Typography
+          sx={{
+            color: transcriptStatus === 'processing' ? 'orange' : 'red',
+            mb: 2,
+          }}
+        >
+          Transcript status: {transcriptStatus}
+        </Typography>
+      )}
 
       <Box>
         {loading ? (
@@ -155,7 +235,7 @@ export default function TeamPage() {
         ) : (
           <Stack spacing={2}>
             {members.map((member) => {
-              const isSelected = selectedMemberId === member.id;
+              const isSelected = selectedMemberIds.includes(member.id);
               const isCurrentUser = member.isCurrentUser;
               return (
                 <Paper
@@ -263,6 +343,13 @@ export default function TeamPage() {
           </Stack>
         )}
       </Box>
+
+      <RecordingModal
+        open={recordingModalOpen}
+        onClose={() => setRecordingModalOpen(false)}
+        onSave={handleSaveRecording}
+        loading={uploading}
+      />
     </Box>
   );
 }
