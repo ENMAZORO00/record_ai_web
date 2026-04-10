@@ -20,6 +20,7 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { DASHBOARD_NAV_ITEMS } from '@/src/config/dashboardNav';
+import { COMPANY_NAV_ITEMS } from '@/src/config/companyNav';
 import { useChatThreads } from '@/src/contexts/ChatThreadsContext';
 import { FONTFAMILY } from '@/src/lib/constants/font';
 import { apiService } from '@/src/services/api';
@@ -29,6 +30,14 @@ import { useRouter } from 'next/router';
 
 export const SIDEBAR_WIDTH_EXPANDED = 288;
 export const SIDEBAR_WIDTH_COLLAPSED = 56;
+
+type DashboardUser = {
+  id: string;
+  name: string;
+  email: string;
+  companyId?: string;
+  companyRole?: 'admin' | 'employee';
+};
 
 type DashboardSidebarProps = {
   collapsed: boolean;
@@ -45,7 +54,7 @@ export default function DashboardSidebar({
   userDisplayName,
 }: DashboardSidebarProps) {
   // Use userDisplayName prop or fallback to context
-  const user = useContext(DashboardUserContext);
+  const user = useContext(DashboardUserContext) as DashboardUser | null;
   const displayName = userDisplayName || user?.name || '';
 
   const router = useRouter();
@@ -79,6 +88,10 @@ export default function DashboardSidebar({
     localStorage.removeItem('authUser');
     router.push('/');
   };
+
+  // Determine if user is company and admin
+  const isCompany = !!user?.companyId;
+  const isAdmin = user?.companyRole === 'admin';
 
   return (
     <Box
@@ -167,12 +180,12 @@ export default function DashboardSidebar({
         }}
       >
         <List sx={{ px: collapsed ? 0.5 : 1.5, py: 0, flexShrink: 0 }}>
+          {/* Main nav items */}
           {DASHBOARD_NAV_ITEMS.map(({ href, label, Icon }) => {
             const isActive =
               href === '/dashboard'
                 ? pathname === '/dashboard'
                 : pathname === href || pathname.startsWith(`${href}/`);
-
             const itemButton = (
               <ListItemButton
                 component={Link}
@@ -219,7 +232,6 @@ export default function DashboardSidebar({
                 )}
               </ListItemButton>
             );
-
             return (
               <ListItem
                 key={href}
@@ -236,6 +248,76 @@ export default function DashboardSidebar({
               </ListItem>
             );
           })}
+
+          {/* Company nav items: Team (all company users), Invite Members (admin only) */}
+          {isCompany &&
+            COMPANY_NAV_ITEMS.filter(
+              (item) => item.label !== 'Invite Members' || isAdmin
+            ).map(({ href, label, Icon }) => {
+              const isActive =
+                pathname === href || pathname.startsWith(`${href}/`);
+              const itemButton = (
+                <ListItemButton
+                  component={Link}
+                  href={href}
+                  selected={isActive}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.1,
+                    px: collapsed ? 1 : 2,
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    '&.Mui-selected': {
+                      bgcolor: 'action.selected',
+                      '&:hover': { bgcolor: 'action.selected' },
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      mr: collapsed ? 0 : 2,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon
+                      sx={{
+                        fontSize: 22,
+                        color: isActive ? 'primary.main' : 'text.secondary',
+                      }}
+                    />
+                  </ListItemIcon>
+                  {!collapsed && (
+                    <ListItemText
+                      primary={label}
+                      primaryTypographyProps={{
+                        noWrap: true,
+                        sx: {
+                          fontFamily: FONTFAMILY.PRIMARY,
+                          fontSize: '0.92rem',
+                          fontWeight: isActive ? 600 : 500,
+                          color: isActive ? 'primary.main' : 'text.secondary',
+                        },
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              );
+              return (
+                <ListItem
+                  key={href}
+                  disablePadding
+                  sx={{ display: 'block', mb: 0.5 }}
+                >
+                  {collapsed ? (
+                    <Tooltip title={label} placement="right">
+                      {itemButton}
+                    </Tooltip>
+                  ) : (
+                    itemButton
+                  )}
+                </ListItem>
+              );
+            })}
         </List>
 
         {/* Removed New Chat button */}
