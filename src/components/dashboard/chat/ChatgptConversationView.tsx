@@ -191,20 +191,6 @@ export default function ChatgptConversationView({
                         minWidth: 0,
                       }}
                     >
-                      <Avatar
-                        variant="rounded"
-                        sx={{
-                          width: 36,
-                          height: 36,
-                          flexShrink: 0,
-                          bgcolor: 'primary.main',
-                          borderRadius: 1.25,
-                        }}
-                      >
-                        <SmartToyOutlinedIcon
-                          sx={{ fontSize: 22, color: 'primary.contrastText' }}
-                        />
-                      </Avatar>
                       <Typography
                         component="div"
                         sx={{
