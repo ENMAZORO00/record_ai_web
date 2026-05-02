@@ -188,7 +188,17 @@ const Page: NextPageWithLayout = () => {
                 width: '100%',
               }}
             >
-              <Card onClick={() => setSelected(t)} sx={{ cursor: 'pointer' }}>
+              <Card
+                onClick={() => setSelected(t)}
+                sx={{
+                  boxShadow: 4,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    transform: 'translateY(-6px)',
+                    boxShadow: 6,
+                  },
+                }}
+              >
                 <CardContent>
                   <Typography sx={{ fontFamily: FONTFAMILY.PRIMARY }}>
                     {getPreview(t.Conversation)}
